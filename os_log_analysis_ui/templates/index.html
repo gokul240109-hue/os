@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Log Analysis Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top">
+                <div class="header-content">
+                    <h1>🔍 OS Log Analysis Dashboard</h1>
+                    <p class="subtitle">Real-time System Log Monitoring & Analytics</p>
+                </div>
+                <div class="user-info">
+                    <span class="user-name">👤 {{ user }}</span>
+                    <span class="user-role">{{ role }}</span>
+                    <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Key Metrics Section -->
+        <section class="metrics-section">
+            <h2>📊 Key Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card total">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Total Logs</p>
+                        <p class="metric-value">{{ logs|length }}</p>
+                        <p class="metric-change">Last 24h</p>
+                    </div>
+                </div>
+                <div class="metric-card critical">
+                    <div class="metric-icon">🔴</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Critical Issues</p>
+                        <p class="metric-value">{{ logs|selectattr('level', 'equalto', 'CRITICAL')|list|length }}</p>
+                        <p class="metric-change">Requires action</p>
+                    </div>
+                </div>
+                <div class="metric-card error">
+                    <div class="metric-icon">⚠️</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Errors</p>
+                        <p class="metric-value">{{ logs|selectattr('level', 'equalto', 'ERROR')|list|length }}</p>
+                        <p class="metric-change">Needs review</p>
+                    </div>
+                </div>
+                <div class="metric-card warning">
+                    <div class="metric-icon">⚡</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Warnings</p>
+                        <p class="metric-value">{{ logs|selectattr('level', 'equalto', 'WARNING')|list|length }}</p>
+                        <p class="metric-change">Monitor</p>
+                    </div>
+                </div>
+                <div class="metric-card info">
+                    <div class="metric-icon">ℹ️</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Info Logs</p>
+                        <p class="metric-value">{{ logs|selectattr('level', 'equalto', 'INFO')|list|length }}</p>
+                        <p class="metric-change">Informational</p>
+                    </div>
+                </div>
+                <div class="metric-card sources">
+                    <div class="metric-icon">🖥️</div>
+                    <div class="metric-data">
+                        <p class="metric-label">Sources</p>
+                        <p class="metric-value">{{ logs|map(attribute='source')|unique|list|length }}</p>
+                        <p class="metric-change">Active systems</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analysis Section -->
+        <section class="analysis-section">
+            <div class="analysis-grid">
+                <!-- Top Sources -->
+                <div class="analysis-card">
+                    <h3>🖥️ Top Log Sources</h3>
+                    <div class="sources-list">
+                        {% set sources = logs|map(attribute='source')|list %}
+                        {% for source in sources|unique %}
+                            <div class="source-item">
+                                <span class="source-name">{{ source }}</span>
+                                <span class="source-count" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: {{ (sources|select('equalto', source)|list|length / (logs|length) * 100)|int }}%; display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: 600; min-width: 40px;">
+                                    {{ sources|select('equalto', source)|list|length }}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Severity Distribution -->
+                <div class="analysis-card">
+                    <h3>🎯 Severity Distribution</h3>
+                    <div class="severity-chart">
+                        {% set critical_count = logs|selectattr('level', 'equalto', 'CRITICAL')|list|length %}
+                        {% set error_count = logs|selectattr('level', 'equalto', 'ERROR')|list|length %}
+                        {% set warning_count = logs|selectattr('level', 'equalto', 'WARNING')|list|length %}
+                        {% set info_count = logs|selectattr('level', 'equalto', 'INFO')|list|length %}
+                        {% set total = critical_count + error_count + warning_count + info_count %}
+                        
+                        {% if total > 0 %}
+                            <div class="severity-bar">
+                                <div class="bar-segment critical" style="width: {{ (critical_count/total*100)|int }}%" title="Critical: {{ critical_count }}"></div>
+                                <div class="bar-segment error" style="width: {{ (error_count/total*100)|int }}%" title="Error: {{ error_count }}"></div>
+                                <div class="bar-segment warning" style="width: {{ (warning_count/total*100)|int }}%" title="Warning: {{ warning_count }}"></div>
+                                <div class="bar-segment info" style="width: {{ (info_count/total*100)|int }}%" title="Info: {{ info_count }}"></div>
+                            </div>
+                            <div class="severity-legend">
+                                <div><span class="legend-dot critical"></span> Critical: {{ critical_count }}</div>
+                                <div><span class="legend-dot error"></span> Error: {{ error_count }}</div>
+                                <div><span class="legend-dot warning"></span> Warning: {{ warning_count }}</div>
+                                <div><span class="legend-dot info"></span> Info: {{ info_count }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Event Types -->
+                <div class="analysis-card">
+                    <h3>📋 Event Types</h3>
+                    <div class="event-types-list">
+                        {% set event_types = logs|map(attribute='event_type')|list %}
+                        {% for event in event_types|unique %}
+                            <div class="event-type-item">
+                                <span class="event-type-name">{{ event }}</span>
+                                <span class="event-type-count">{{ event_types|select('equalto', event)|list|length }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Prediction Section -->
+        <section class="prediction-section">
+            <h2>🤖 Predict Log Severity</h2>
+            <div class="prediction-container">
+                <div class="prediction-input-group">
+                    <input type="text" id="messageInput" placeholder="Enter a log message to analyze..." autocomplete="off">
+                    <button onclick="predictSeverity()" class="btn-predict">Predict Severity</button>
+                    <span id="loadingSpinner" class="spinner" style="display:none;">⏳</span>
+                </div>
+                <div id="predictionResult" class="prediction-result" style="display:none;">
+                    <div class="prediction-header">Prediction Result</div>
+                    <p><strong>Message:</strong> <span id="inputMessage"></span></p>
+                    <p><strong>Severity:</strong> <span id="predictionOutput" class="prediction-badge"></span></p>
+                </div>
+                <div id="errorMessage" class="error-message" style="display:none;"></div>
+            </div>
+        </section>
+
+        <!-- Recent Logs Section -->
+        <section class="logs-section">
+            <h2>📋 Recent System Logs</h2>
+            <div class="logs-filters">
+                <input type="text" id="logFilter" placeholder="🔍 Filter logs..." class="log-filter-input">
+                <select id="levelFilter" class="log-filter-select">
+                    <option value="">All Levels</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="ERROR">Error</option>
+                    <option value="WARNING">Warning</option>
+                    <option value="INFO">Info</option>
+                </select>
+                <select id="sourceFilter" class="log-filter-select">
+                    <option value="">All Sources</option>
+                    {% set sources = logs|map(attribute='source')|unique|list %}
+                    {% for source in sources %}
+                    <option value="{{ source }}">{{ source }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {% if logs %}
+            <div class="logs-table-wrapper">
+                <table class="logs-table" id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Level</th>
+                            <th>Source</th>
+                            <th>Message</th>
+                            <th>Event Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr class="log-row level-{{ log.get('level', 'INFO')|lower }}">
+                            <td class="log-time">{{ log.get('timestamp', 'N/A') }}</td>
+                            <td class="log-level">
+                                <span class="level-badge level-{{ log.get('level', 'INFO')|lower }}">
+                                    {{ log.get('level', 'INFO') }}
+                                </span>
+                            </td>
+                            <td class="log-source">{{ log.get('source', 'System') }}</td>
+                            <td class="log-message">{{ log.get('message', '') }}</td>
+                            <td class="log-event">{{ log.get('event_type', 'GENERAL') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>No logs available in the database</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- Patterns Section -->
+        {% if patterns %}
+        <section class="patterns-section">
+            <h2>📊 Frequent Error Patterns</h2>
+            <div class="patterns-grid">
+                {% for pat in patterns %}
+                <div class="pattern-card">
+                    <div class="pattern-name">
+                        {% if pat['itemsets'] %}
+                            {{ pat['itemsets']|string|replace("frozenset({", "")|replace("})", "")|replace("'", "") }}
+                        {% else %}
+                            Pattern
+                        {% endif %}
+                    </div>
+                    <div class="pattern-support">
+                        Support: <strong>{{ "%.2%"|format(pat['support']) }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>OS Log Analysis Dashboard v1.0 | Last updated: <span id="lastUpdate"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        function predictSeverity() {
+            const message = document.getElementById('messageInput').value.trim();
+            
+            if (!message) {
+                showError('Please enter a log message');
+                return;
+            }
+
+            showSpinner(true);
+            hideError();
+            hidePrediction();
+
+            fetch('/api/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showSpinner(false);
+                if (data.success) {
+                    displayPrediction(data.message, data.prediction);
+                } else {
+                    showError(data.error || 'Prediction failed');
+                }
+            })
+            .catch(error => {
+                showSpinner(false);
+                showError('Error: ' + error.message);
+            });
+        }
+
+        function displayPrediction(message, prediction) {
+            document.getElementById('inputMessage').textContent = message;
+            document.getElementById('predictionOutput').textContent = prediction;
+            document.getElementById('predictionResult').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = '❌ ' + message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function hidePrediction() {
+            document.getElementById('predictionResult').style.display = 'none';
+        }
+
+        function showSpinner(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'inline-block' : 'none';
+        }
+
+        // Log filtering
+        function filterLogs() {
+            const filterText = document.getElementById('logFilter').value.toLowerCase();
+            const levelFilter = document.getElementById('levelFilter').value;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            const table = document.getElementById('logsTable');
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+            for (let row of rows) {
+                let show = true;
+                
+                if (filterText) {
+                    const message = row.querySelector('.log-message').textContent.toLowerCase();
+                    show = show && message.includes(filterText);
+                }
+                
+                if (levelFilter) {
+                    const level = row.querySelector('.level-badge').textContent.trim();
+                    show = show && level === levelFilter;
+                }
+                
+                if (sourceFilter) {
+                    const source = row.querySelector('.log-source').textContent.trim();
+                    show = show && source === sourceFilter;
+                }
+                
+                row.style.display = show ? '' : 'none';
+            }
+        }
+
+        // Update last update time
+        function updateLastUpdate() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        // Allow Enter key to trigger prediction
+        document.getElementById('messageInput').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                predictSeverity();
+            }
+        });
+
+        // Attach filter listeners
+        if (document.getElementById('logFilter')) {
+            document.getElementById('logFilter').addEventListener('input', filterLogs);
+        }
+        if (document.getElementById('levelFilter')) {
+            document.getElementById('levelFilter').addEventListener('change', filterLogs);
+        }
+        if (document.getElementById('sourceFilter')) {
+            document.getElementById('sourceFilter').addEventListener('change', filterLogs);
+        }
+
+        // Update time on load
+        updateLastUpdate();
+    </script>
+</body>
+</html>
